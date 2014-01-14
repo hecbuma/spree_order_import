@@ -1,0 +1,3 @@
+class SpreeOrderImport::Import
+
+end
