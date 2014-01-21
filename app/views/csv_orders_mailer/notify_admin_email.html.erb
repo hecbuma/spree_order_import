@@ -1,0 +1,7 @@
+<H1>We finish to proccess your orders!</h1>
+
+<ul>
+  <% @orders.each do |order| %>
+    <li><%= link_to order.number, spree.edit_admin_order_url(order)  %></li>
+  <% end %>
+</ul>

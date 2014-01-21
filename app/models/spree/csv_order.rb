@@ -107,14 +107,15 @@ class Spree::CsvOrder < ActiveRecord::Base
           order.next!
         end
 
-        orders << order.id
+        orders << order
       end
     rescue => e
       self.error!
       errors = {error: e.message}
       errors
     end
-      #send Email
+      self.finish!
+      ::CsvOrdersMailer.notify_admin_email(orders, self).deliver
   end
 
 
