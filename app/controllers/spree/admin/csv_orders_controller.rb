@@ -12,7 +12,7 @@ module Spree
         @csv_order = Spree::CsvOrder.new file: params[:csv_file], name: params[:csv_file].original_filename
         if @csv_order.save
           message = { notice: "Your orders will be procesed soon, and you will notified by Email."}
-          # CsvOrdersWorker.perform_async(@csv_order.id)
+          CsvOrdersWorker.perform_async(@csv_order.id)
           redirect_to :back, flash: { notice: message[:notice], alert: message[:error]}
         else
           render :index
