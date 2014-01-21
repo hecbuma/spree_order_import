@@ -1,0 +1,52 @@
+<% content_for :page_title do %>
+  <%= "Listing CSV orders files" %>
+<% end %>
+<%= render :partial => 'spree/shared/error_messages', :locals => { :target => @csv_order } %>
+  <fieldset>
+    <legend align="center">Process CSV File</legend>
+    <div class="field-block alpha sixteen columns">
+      <p>Upload a CSV file with orders.</p>
+      <%= form_tag admin_csv_orders_path, :multipart => true do %>
+        <div data-hook="file" class="field">
+          <%= label_tag 'csv_file', "CSV File" %><br>
+          <%= file_field_tag 'csv_file', :accept => 'application/csv' %><br>
+        </div>
+        <div class="clearfix"></div>
+        <div class="actions filter-actions">
+        <div> 
+          <%= button t(:upload_csv), 'icon-search' %>
+        </div>
+      <% end %>
+    </div>
+</fieldset>
+
+ <% if @csv_list.try(:any?) %>
+   <table class="index responsive" id="listing_orders" data-hook>
+     <colgroup>
+        <col style="width: 25%;">
+        <col style="width: 25%;">
+        <col style="width: 25%;">
+        <col style="width: 25%;">
+     </colgroup>
+     <thead>
+       <tr data-hook="admin_orders_index_headers">
+         <th>Created at</th>
+         <th>Name</th>
+         <th>Orders Number</th>
+         <th>Status</th>
+       </tr>
+     </thead>
+     <tbody>
+     <% @csv_list.each do |order_file| %>
+        <tr data-hook="admin_orders_index_rows" class="<%= cycle('odd', 'even') %>">
+          <td class="align-center"><%= l order_file.created_at.to_date %></td>
+          <td class="align-center"><%= order_file.name %></td>
+          <td class="align-center"><%= order_file.orders_number %></td>
+          <td class="align-center"><%= order_file.state %></td>
+      </tr>
+     <% end %>
+     </tbody>
+   </table>
+ <% end %>
+
+

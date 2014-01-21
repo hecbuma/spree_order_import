@@ -1,0 +1,6 @@
+<!-- insert_after "erb[silent]:contains('content_for :page_actions')" 
+     original '99c890667b7e1803e5d04ce1048a475f3402db4a'
+-->
+<li>
+  <%= button_link_to 'Import Orders', admin_csv_orders_url, :icon => 'icon-plus', :id => 'admin_import_orders' %>
+</li>
