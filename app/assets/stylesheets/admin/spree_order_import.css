@@ -1,3 +1,7 @@
 /*
  *= require admin/spree_backend
 */
+
+#admin_import_orders {
+  margin-right: 5px;
+}
