@@ -112,10 +112,9 @@ class Spree::CsvOrder < ActiveRecord::Base
     rescue => e
       self.error!
       errors = {error: e.message}
-      errors
     end
-      self.finish!
-      ::CsvOrdersMailer.notify_admin_email(orders, self).deliver
+      self.finish! unless errors
+      ::CsvOrdersMailer.notify_admin_email(orders, self, errors).deliver
   end
 
 
@@ -137,6 +136,15 @@ class Spree::CsvOrder < ActiveRecord::Base
         message["row #{$.}"] << "#{header} is blank" if row[header].blank?
         orders_number_list << row["Order Number"]
       end
+
+      if Spree::Order.where(:number => row['Order Number']).first && !row['Order Number'].blank?
+        message["row #{$.}"] << "Order Number: #{row['Order Number']} is already taken."
+      end
+
+      unless Spree::Variant.where(:sku => row["Sku"]).first && !row['Sku'].blank?
+        message["row #{$.}"] << "We couldn't find any Variant with this SKU: #{row['SKU']}."
+      end
+
       ship_country =  Spree::Country.where(:name => row['Shipping Country'])
       ship_state =  Spree::State.where(:name => row['Shipping State'])
       bill_country =  Spree::Country.where(:name => row['Billing Country'])

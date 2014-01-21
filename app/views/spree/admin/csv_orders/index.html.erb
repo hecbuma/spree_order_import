@@ -1,6 +1,12 @@
 <% content_for :page_title do %>
   <%= "Listing CSV orders files" %>
 <% end %>
+<% content_for :page_actions do %>
+  <% if can?(:admin, Spree::Order) %>
+   <li><%= button_link_to Spree.t(:back_to_orders_list), admin_orders_path, :icon => 'icon-arrow-left' %></li>
+  <% end %>
+<% end %>
+
 <%= render :partial => 'spree/shared/error_messages', :locals => { :target => @csv_order } %>
   <fieldset>
     <legend align="center">Process CSV File</legend>
