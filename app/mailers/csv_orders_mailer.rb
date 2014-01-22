@@ -1,5 +1,4 @@
 class CsvOrdersMailer < ActionMailer::Base
-  layout 'mailers/base'
   default from: "'Team littleBits' <info@littlebits.cc>"
 
   def notify_admin_email(orders, file, errors)
