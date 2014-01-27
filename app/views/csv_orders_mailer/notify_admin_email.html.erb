@@ -1,15 +1,68 @@
-<H1>We finish to proccess your orders!</h1>
+          <table class="container">
+            <tr>
+              <td>
 
-<p>File: <%= @csv_order.name %>, end with status: <%= @csv_order.state %> </p>
+                <table class="row">
+                  <tr>
+                    <td class="wrapper last">
 
-<% if @orders.any?%>
-  <ul>
-    <% @orders.each do |order| %>
-      <li><%= link_to order.number, spree.edit_admin_order_url(order)  %></li>
-    <% end %>
-  </ul>
-<% end %>
-<% unless @errors.blank?%>
-  <p>We couldn't process the orders due the following errors:</p>
-  <p><b><%= @errors %></b></p>
-<% end %>
+                      <table class="twelve columns">
+                        <tr>
+                          <td>
+                            <h1>We finish to proccess your orders!</h1>
+                            <p class="lead">File: <%= @csv_order.name %>, end with status: <%= @csv_order.state %></p>
+                          </td>
+                          <td class="expander"></td>
+                        </tr>
+                      </table>
+
+                    </td>
+                  </tr>
+                </table>
+
+                <% if @orders.any?%>
+                  <table class="twelve columns panel" border="1">
+                    <thead>
+                      <tr align="center">
+                        <th class="center">Order Number</th>
+                        <th class="center">Item Number</th>
+                        <th class="center">Status</th>
+                        <th class="center">Payment Status</th>
+                        <th class="center">Subtotal</th>
+                        <th class="center">Payment Total</th>
+                      <tr>
+                      </thead>
+                      <tbody>
+                        <% @orders.each do |order| %>
+                          <tr align="center">
+                            <td class="center"><%= link_to order.number, spree.edit_admin_order_url(order)  %></td>
+                            <td class="center"><%= order.line_items.count %></td>
+                            <td class="center"><%= order.state %></td>
+                            <td class="center"><%= order.payment_state %></td>
+                            <td class="center"><%= number_to_currency order.item_total %></td>
+                            <td class="center"><%= number_to_currency order.payment_total %></td>
+                          </tr>
+                        <% end %>
+                      </tbody>
+                  </table>
+                <% end %>
+
+                <% unless @errors.blank?%>
+                  <table class="row callout">
+                    <tr>
+                      <td class="wrapper last">
+
+                        <table class="twelve columns">
+                          <tr>
+                            <td class="panel">
+                              <h3>We couldn't process the orders due the following errors:</h3>
+                              <p><b><%= @errors %></b></p>
+                            </td>
+                            <td class="expander"></td>
+                          </tr>
+                        </table>
+
+                      </td>
+                    </tr>
+                  </table>
+              <% end %>

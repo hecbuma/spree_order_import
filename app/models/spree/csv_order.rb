@@ -32,7 +32,8 @@ class Spree::CsvOrder < ActiveRecord::Base
         #order info
         order = Spree::Order.new number: row["Order Number"]
         order.customer_group = row["B2B/B2C"] unless row["B2B/B2C"].blank?
-        order.po_number = row["Customer PO Number"] 
+        order.po_number = row["Customer PO Number"]
+        order.carrier_account_number = row["Customer UPS"]
         order.sop_code = row["SOP CODE"]
         order.gift_wrap = true unless row["Gift Wrap"].blank?
         5.times do |i|
@@ -72,8 +73,8 @@ class Spree::CsvOrder < ActiveRecord::Base
         #Assing Variants
         ::CSV.foreach(open_file2,{:headers => true}) do |row_clon|
           if row_clon["Order Number"] == row["Order Number"]
-            variant = Spree::Variant.find_by_sku(row["Sku"])
-            quantity = row["Number of Items"].to_i
+            variant = Spree::Variant.find_by_sku(row_clon["Sku"])
+            quantity = row_clon["Number of Items"].to_i
             order.contents.add(variant, quantity, nil, shipment)
           end
         end
@@ -88,9 +89,29 @@ class Spree::CsvOrder < ActiveRecord::Base
         order.save!
         order.refresh_shipment_rates
 
+
         until order.payment?
           order.next
         end
+
+        unless row["Tax"].blank? || row["Tax"] == "0"
+          tax_adjustment = order.adjustments.new
+          tax_adjustment.label = "Custom Tax"
+          tax_adjustment.originator_type = "Spree::TaxRate"
+          tax_adjustment.amount = row["Tax"].to_i
+          tax_adjustment.save
+        end
+
+        unless row["Shipping Cost"].blank? || row["Shipping Cost"] == "0"
+          order.adjustments.shipping.first.destroy
+          shipping = order.adjustments.new
+          shipping.label = "Custom Shipping`"
+          shipping.originator_type = "Spree::ShippingMethod"
+          shipping.amount = row["Shipping Cost"].to_i
+          shipping.save
+        end
+
+        order.save
 
         #set Payment
         payment_method_id = Spree::PaymentMethod.find_by_name(row["Payment Method"]).id
