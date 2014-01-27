@@ -1,11 +1,17 @@
 class Spree::CsvOrder < ActiveRecord::Base
   require 'csv'
 
-  attr_accessible :file, :name, :orders_number, :state
+  attr_accessible :file, :name, :orders_number, :state, :user_id
 
   has_attached_file :file
 
   validate :presence_fields, :on => :create
+
+  if Spree.user_class
+    belongs_to :user, class_name: Spree.user_class.to_s
+  else
+    belongs_to :user
+  end
 
   state_machine :state, :initial => :uploaded do
     event :process do

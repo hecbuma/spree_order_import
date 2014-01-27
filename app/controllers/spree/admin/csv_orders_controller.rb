@@ -9,7 +9,7 @@ module Spree
       end
 
       def create
-        @csv_order = Spree::CsvOrder.new file: params[:csv_file], name: params[:csv_file].original_filename
+        @csv_order = Spree::CsvOrder.new file: params[:csv_file], name: params[:csv_file].original_filename, user_id: spree_current_user.id
         if @csv_order.save
           message = { notice: "Your orders will be procesed soon, and you will notified by Email."}
           CsvOrdersWorker.perform_async(@csv_order.id)
