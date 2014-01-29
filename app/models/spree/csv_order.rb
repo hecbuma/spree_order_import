@@ -191,9 +191,9 @@ class Spree::CsvOrder < ActiveRecord::Base
         message["row #{$.}"] << "No Charge Code must not be blank"
       end
 
-      unless row['Customer Type'].blank?
+      unless row['Customer type'].blank?
         user_group = Spree::UserGroup.where(:name => row["Customer type"])
-        message["row #{$.}"] << "we couldn't find this user group: #{row['Customer Type']}" if user_group.blank? && row["Customer type"] != "DRTC:LBT"
+        message["row #{$.}"] << "we couldn't find this user group: #{row['Customer type']}" if user_group.blank? && row["Customer type"] != "DRTC:LBT"
       end
 
 
