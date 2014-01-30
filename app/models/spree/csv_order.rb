@@ -104,7 +104,7 @@ class Spree::CsvOrder < ActiveRecord::Base
           tax_adjustment = order.adjustments.new
           tax_adjustment.label = "Custom Tax"
           tax_adjustment.originator_type = "Spree::TaxRate"
-          tax_adjustment.amount = row["Tax"].to_i
+          tax_adjustment.amount = row["Tax"].to_f
           tax_adjustment.save
         end
 
@@ -113,7 +113,7 @@ class Spree::CsvOrder < ActiveRecord::Base
           shipping = order.adjustments.new
           shipping.label = "Custom Shipping`"
           shipping.originator_type = "Spree::ShippingMethod"
-          shipping.amount = row["Shipping Cost"].to_i
+          shipping.amount = row["Shipping Cost"].to_f
           shipping.save
         end
 
