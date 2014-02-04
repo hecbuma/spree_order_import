@@ -109,7 +109,7 @@ class Spree::CsvOrder < ActiveRecord::Base
         end
 
         unless row["Shipping Cost"].blank? || row["Shipping Cost"] == "0"
-          order.adjustments.shipping.first.destroy
+          order.adjustments.shipping.first.destroy unless order.adjustments.shipping.empty?
           shipping = order.adjustments.new
           shipping.label = "Custom Shipping`"
           shipping.originator_type = "Spree::ShippingMethod"
@@ -130,6 +130,7 @@ class Spree::CsvOrder < ActiveRecord::Base
 
         payment.save
 
+        order.from_csv = true
         until order.completed?
           order.next!
         end
@@ -138,7 +139,10 @@ class Spree::CsvOrder < ActiveRecord::Base
       end
     rescue => e
       self.error!
-      errors = {error: e.message}
+      message = ""
+      message << e.message
+      message << e.backtrace.join("\n")
+      errors = {error: message}
     end
       self.finish! unless errors
       ::CsvOrdersMailer.notify_admin_email(orders, self, errors).deliver
@@ -192,7 +196,7 @@ class Spree::CsvOrder < ActiveRecord::Base
       end
 
       unless row['Customer type'].blank?
-        message["row #{$.}"] << "we couldn't find this user group: #{row['Customer type']}" if Spree::Order.customer_types.include?(row["Customer type"]) && row["Customer type"] != "DRTC:LBT"
+        message["row #{$.}"] << "we couldn't find this user group: #{row['Customer type']}" if !Spree::Order.customer_types.include?(row["Customer type"]) && row["Customer type"] != "DRTC:LBT"
       end
 
 
