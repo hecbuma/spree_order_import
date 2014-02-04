@@ -7,7 +7,7 @@ class CsvOrdersMailer < ActionMailer::Base
     @orders = orders
     @errors = errors
     subject = "Orders from CSV file: #{@csv_order.name}"
-    mail(:to => @cvs_order.user.email, :cc => "h.bustillos@heroint.com", :subject => subject)
+    mail(:to => @csv_order.user.email, :cc => "h.bustillos@heroint.com", :subject => subject)
   end
 end
 

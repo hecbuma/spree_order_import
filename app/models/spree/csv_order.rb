@@ -192,15 +192,14 @@ class Spree::CsvOrder < ActiveRecord::Base
       end
 
       unless row['Customer type'].blank?
-        user_group = Spree::UserGroup.where(:name => row["Customer type"])
-        message["row #{$.}"] << "we couldn't find this user group: #{row['Customer type']}" if user_group.blank? && row["Customer type"] != "DRTC:LBT"
+        message["row #{$.}"] << "we couldn't find this user group: #{row['Customer type']}" if Spree::Order.customer_types.include?(row["Customer type"]) && row["Customer type"] != "DRTC:LBT"
       end
 
 
       self.orders_number = orders_number_list.uniq.count
       unless message["row #{$.}"].empty?
         error_list = message["row #{$.}"].join("<br/>")
-        errors_msg << "<b>row #{$.}:</b><br/> #{error_list}"
+        errors_msg << "<b>Order:#{row['Order Number']} row #{$.}:</b><br/> #{error_list}"
       end
     end
     unless errors_msg.empty?
