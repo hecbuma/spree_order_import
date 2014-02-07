@@ -8,10 +8,12 @@
               <tr style="vertical-align: top; text-align: left; padding: 0;" align="left">
                 <td style="word-break: break-word; -webkit-hyphens: auto; -moz-hyphens: auto; hyphens: auto; border-collapse: collapse !important; vertical-align: top; text-align: left; color: #222222; font-family: 'Helvetica', 'Arial', sans-serif; font-weight: normal; line-height: 19px; font-size: 14px; margin: 0; padding: 0px 0px 10px;" align="left" valign="top">
                   <h1 style="color: #222222; font-family: 'Helvetica', 'Arial', sans-serif; font-weight: normal; text-align: left; line-height: 1.3; word-break: normal; font-size: 40px; margin: 0; padding: 0;" align="left">
-                  We finish to proccess your orders!
+                    Your orders have been processed.
                   </h1>
                   <p class="lead" style="color: #222222; font-family: 'Helvetica', 'Arial', sans-serif; font-weight: normal; text-align: left; line-height: 21px; font-size: 18px; margin: 0 0 10px; padding: 0;" align="left">
-                  File: <%= @csv_order.name %>, end with status: <%= @csv_order.state %>
+                  <b>File:</b> 
+                  <%= @csv_order.name %></br>
+                  <b>Ending status:</b> <%= @csv_order.state %>
                   </p>
                 </td>
                 <td class="expander" style="word-break: break-word; -webkit-hyphens: auto; -moz-hyphens: auto; hyphens: auto; border-collapse: collapse !important; vertical-align: top; text-align: left; visibility: hidden; width: 0px; color: #222222; font-family: 'Helvetica', 'Arial', sans-serif; font-weight: normal; line-height: 19px; font-size: 14px; margin: 0; padding: 0;" align="left" valign="top">
@@ -27,7 +29,7 @@
           <thead>
             <tr align="center" style="vertical-align: top; text-align: left; padding: 0;">
               <th class="center">Order Number</th>
-              <th class="center">Item Number</th>
+              <th class="center">Number of Items</th>
               <th class="center">Status</th>
               <th class="center">Subtotal</th>
               <th class="center">Order Total</th>
@@ -41,7 +43,7 @@
                   <%= link_to order.number, spree.edit_admin_order_url(order), {:style =>"color: #2ba6cb; text-decoration: none;"  }%>
                 </td>
                 <td class="center" style="word-break: break-word; -webkit-hyphens: auto; -moz-hyphens: auto; hyphens: auto; border-collapse: collapse !important; vertical-align: top; text-align: center; color: #222222; font-family: 'Helvetica', 'Arial', sans-serif; font-weight: normal; line-height: 19px; font-size: 14px; margin: 0; padding: 0px 0px 10px;" align="center" valign="top">
-                <%= order.line_items.count %></td>
+                <%= order.line_items.sum &:quantity %></td>
                 <td class="center" style="word-break: break-word; -webkit-hyphens: auto; -moz-hyphens: auto; hyphens: auto; border-collapse: collapse !important; vertical-align: top; text-align: center; color: #222222; font-family: 'Helvetica', 'Arial', sans-serif; font-weight: normal; line-height: 19px; font-size: 14px; margin: 0; padding: 0px 0px 10px;" align="center" valign="top">
                 <%= order.state %></td>
                 <td class="center" style="word-break: break-word; -webkit-hyphens: auto; -moz-hyphens: auto; hyphens: auto; border-collapse: collapse !important; vertical-align: top; text-align: center; color: #222222; font-family: 'Helvetica', 'Arial', sans-serif; font-weight: normal; line-height: 19px; font-size: 14px; margin: 0; padding: 0px 0px 10px;" align="center" valign="top">
