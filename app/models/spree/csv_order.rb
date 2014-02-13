@@ -294,7 +294,7 @@ class Spree::CsvOrder < ActiveRecord::Base
       end
 
       if !row['Item Unit Price'].blank? && !row['Discount Level'].blank?
-        # message["row #{$.}"] << "WARNING: you're setting a discount level and a item unit price, this may cause unintended consequences and we recommend setting only one."
+        message["row #{$.}"] << "WARNING: you're setting a discount level and a item unit price, this may cause unintended consequences and we recommend setting only one."
       end
 
       self.orders_number = orders_number_list.uniq.count
