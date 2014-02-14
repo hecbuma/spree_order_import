@@ -47,7 +47,11 @@ class Spree::CsvOrder < ActiveRecord::Base
           order.po_number = row["Customer PO Number"]
           order.carrier_account_number = row["Customer UPS"]
           order.sop_code = row["SOP CODE"]
-          order.gift_wrap = row["Gift Wrap"].blank? ? false : row["Gift Wrap"]
+          if row["Gift Wrap"] == "No" || row["Gift Wrap"].blank?
+            order.gift_wrap = false
+          else
+            order.gift_wrap = true
+          end
           5.times do |i|
             special_intruction_x = "Special Instruction #{i+1}"
             order.special_instructions << row[special_intruction_x]
