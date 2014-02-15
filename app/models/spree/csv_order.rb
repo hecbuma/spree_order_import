@@ -56,6 +56,8 @@ class Spree::CsvOrder < ActiveRecord::Base
             special_intruction_x = "Special Instruction #{i+1}"
             order.special_instructions << row[special_intruction_x]
           end
+          order.through_admin = true
+          order.group_shipment = true
           order.save
 
           user = Spree.user_class.where(:email => row['Email'])
@@ -81,7 +83,6 @@ class Spree::CsvOrder < ActiveRecord::Base
                                                                              "country_id"=> ship_country_id, "state_id"=> ship_state_id,
                                                                              "phone"=> row["Shipping Phone"]},
                                                   "customer_type" => row["Customer type"] }
-
 
           #Assing Variants
           ::CSV.foreach(open_file2,{:headers => true}) do |row_clon|
@@ -117,7 +118,6 @@ class Spree::CsvOrder < ActiveRecord::Base
               shipment.refresh_rates
               shipment.custom_name = row['Shipping Method']
               shipment.save!
-
             end
           end
 
@@ -129,9 +129,20 @@ class Spree::CsvOrder < ActiveRecord::Base
           order.save!
           order.refresh_shipment_rates
 
-
+          current_shipments = {}
+          order.shipments.each {|s| current_shipments["#{s.number}"] = s.inventory_units.map(&:variant_id).uniq }
           until order.payment?
             order.next
+          end
+
+          new_shipments = order.shipments
+          current_shipments.each_pair do |key, value|
+            new_shipments.each do |new_shipment|
+              if value == new_shipment.inventory_units.map(&:variant_id).uniq 
+                new_shipment.number = key
+                new_shipment.save
+              end
+            end
           end
 
           unless row["Tax"].blank? || row["Tax"] == "0"
