@@ -130,7 +130,9 @@ class Spree::CsvOrder < ActiveRecord::Base
           order.refresh_shipment_rates
 
           current_shipments = {}
+          current_custom_names = {}
           order.shipments.each {|s| current_shipments["#{s.number}"] = s.inventory_units.map(&:variant_id).uniq }
+          order.shipments.each {|s| current_custom_names["#{s.number}"] = s.custom_name }
           until order.payment?
             order.next
           end
@@ -139,6 +141,7 @@ class Spree::CsvOrder < ActiveRecord::Base
           current_shipments.each_pair do |key, value|
             new_shipments.each do |new_shipment|
               if value == new_shipment.inventory_units.map(&:variant_id).uniq 
+                new_shipment.custom_name = current_custom_names[key]
                 new_shipment.number = key
                 new_shipment.save
               end
