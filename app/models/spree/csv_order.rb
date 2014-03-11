@@ -1,7 +1,6 @@
 class Spree::CsvOrder < ActiveRecord::Base
   require 'csv'
 
-  attr_accessible :file, :name, :orders_number, :state, :user_id
 
   has_attached_file :file
 
@@ -58,6 +57,7 @@ class Spree::CsvOrder < ActiveRecord::Base
           end
           order.through_admin = true
           order.group_shipment = true
+          order.from_csv = true
           order.save
 
           user = Spree.user_class.where(:email => row['Email'])
@@ -104,10 +104,10 @@ class Spree::CsvOrder < ActiveRecord::Base
               if !row_clon['Item Unit Price'].blank? || !row_clon['Discount Level'].blank?
                 if !row_clon['Item Unit Price'].blank? && !row_clon['Discount Level'].blank?
                   price = row_clon['Item Unit Price'].to_f * (100 - row_clon['Discount Level'].gsub('%','').to_f)/100
-                elsif row_clon['Item Unit Price'].blank? 
+                elsif row_clon['Item Unit Price'].blank?
                   price = order.line_items.last.price * (100 - row_clon['Discount Level'].gsub('%','').to_f)/100
                 else
-                  price = row_clon['Item Unit Price'].to_f 
+                  price = row_clon['Item Unit Price'].to_f
                 end
 
                 ln = order.line_items.last
@@ -141,7 +141,7 @@ class Spree::CsvOrder < ActiveRecord::Base
           new_shipments = order.shipments
           current_shipments.each_pair do |key, value|
             new_shipments.each do |new_shipment|
-              if value == new_shipment.inventory_units.map(&:variant_id).uniq 
+              if value == new_shipment.inventory_units.map(&:variant_id).uniq
                 new_shipment.custom_name = current_custom_names[key]
                 new_shipment.number = key
                 new_shipment.save
@@ -152,7 +152,7 @@ class Spree::CsvOrder < ActiveRecord::Base
           unless row["Tax"].blank? || row["Tax"] == "0"
             tax_adjustment = order.adjustments.new
             tax_adjustment.label = "Custom Tax"
-            tax_adjustment.originator_type = "Spree::TaxRate"
+            tax_adjustment.source_type = "Spree::TaxRate"
             tax_adjustment.amount = row["Tax"].to_f
             tax_adjustment.save
           end
@@ -165,10 +165,8 @@ class Spree::CsvOrder < ActiveRecord::Base
                 if shipment
                     shipment.refresh_rates
                     shipment.save
-                    adjustment = shipment.adjustment
-                    adjustment.close
-                    adjustment.amount = row_clon["Shipping Cost"].to_f
-                    adjustment.save
+                    shipment.cost  = row_clon["Shipping Cost"].to_f
+                    shipment.save
                 end
               end
             end
@@ -179,15 +177,14 @@ class Spree::CsvOrder < ActiveRecord::Base
           #set Payment
           payment_method_id = Spree::PaymentMethod.find_by_name(row["Payment Method"]).id
 
-          payment_data = {"amount"=> order.total.to_f, "payment_method_id"=> payment_method_id, 
-                     "purchase_order_number"=> row["Purchase Order Number"], 
-                     "no_charge_note"=> row["No Charge Note"], 
+          payment_data = {"amount"=> order.total.to_f, "payment_method_id"=> payment_method_id,
+                     "purchase_order_number"=> row["Purchase Order Number"],
+                     "no_charge_note"=> row["No Charge Note"],
                      "no_charge_code"=> row["No Charge Code"]}
           payment = order.payments.build(payment_data)
 
           payment.save
 
-          order.from_csv = true
           order.customer_type = row["Customer type"]
           until order.completed?
             order.next!

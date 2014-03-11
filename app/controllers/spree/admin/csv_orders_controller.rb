@@ -9,7 +9,7 @@ module Spree
       end
 
       def create
-        @csv_order = Spree::CsvOrder.new file: params[:csv_file], name: params[:csv_file].original_filename, user_id: spree_current_user.id
+        @csv_order = Spree::CsvOrder.new csv_order_params
         if @csv_order.save
           message = { notice: "Your orders will be procesed soon, and you will notified by Email."}
           CsvOrdersWorker.perform_async(@csv_order.id)
@@ -17,6 +17,14 @@ module Spree
         else
           render :index
         end
+      end
+
+      private
+
+      def csv_order_params
+        raw_parameters = { file: params[:csv_file], name: params[:csv_file].original_filename, user_id: spree_current_user.id }
+        parameters = ActionController::Parameters.new(raw_parameters)
+        parameters.permit(:file, :name, :user_id)
       end
 
 
