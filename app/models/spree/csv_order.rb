@@ -116,7 +116,7 @@ class Spree::CsvOrder < ActiveRecord::Base
               end
 
               shipment.refresh_rates
-              shipment.custom_name = row['Shipping Method']
+              shipment.custom_name = row_clon['Shipping Method']
               shipment.save!
             end
           end
@@ -133,6 +133,7 @@ class Spree::CsvOrder < ActiveRecord::Base
           current_custom_names = {}
           order.shipments.each {|s| current_shipments["#{s.number}"] = s.inventory_units.map(&:variant_id).uniq }
           order.shipments.each {|s| current_custom_names["#{s.number}"] = s.custom_name }
+
           until order.payment?
             order.next
           end
