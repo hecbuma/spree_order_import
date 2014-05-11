@@ -1,4 +1,4 @@
-//= require admin/backend
+//= require spree/backend
 $(document).ready(
   function(){
     $('#csv_file').change(
