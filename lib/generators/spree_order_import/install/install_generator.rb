@@ -6,7 +6,7 @@ module SpreeOrderImport
 
       def add_javascripts
         append_file 'app/assets/javascripts/store/all.js', "//= require store/spree_order_import\n"
-        append_file 'app/assets/javascripts/admin/all.js', "//= require admin/spree_order_import\n"
+        append_file 'app/assets/javascripts/spree/backend/all.js', "//= require admin/spree_order_import\n"
       end
 
       def add_stylesheets

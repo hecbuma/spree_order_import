@@ -44,14 +44,14 @@ class Spree::CsvOrder < ActiveRecord::Base
             order.customer_group = row["B2B/B2C"]
           end
           order.po_number = row["Customer PO Number"]
-          order.carrier_account_number = row["Customer UPS"]
+          order.carrier_account_number = row["Customer Shipping Account"]
           order.sop_code = row["SOP CODE"]
           if row["Gift Wrap"] == "No" || row["Gift Wrap"].blank?
             order.gift_wrap = false
           else
             order.gift_wrap = true
           end
-          5.times do |i|
+          3.times do |i|
             special_intruction_x = "Special Instruction #{i+1}"
             order.special_instructions << row[special_intruction_x]
           end
@@ -66,6 +66,8 @@ class Spree::CsvOrder < ActiveRecord::Base
           bill_state_id = Spree::State.find_by_name(row["Billing State"]).id
           ship_country_id = Spree::Country.find_by_name(row["Shipping Country"]).id
           ship_state_id = Spree::State.find_by_name(row["Shipping State"]).id
+          ship_phone = row['Shipping Phone Extension'].blank? ? "#{row['Shipping Phone']}x#{row['Shipping Phone Extension']}" : row['Shipping Phone']
+          bill_phone = row['Billing Phone Extension'].blank? ? "#{row['Billing Phone']}x#{row['Billing Phone Extension']}" : row['Billing Phone']
           user_details = {"email"=> row["Email"], "bill_address_attributes"=>{"firstname"=> row["Billing First Name"],
                                                                              "lastname"=> row["Billing Last Name"],
                                                                              "company"=> row["Order Company Name"],
@@ -73,7 +75,7 @@ class Spree::CsvOrder < ActiveRecord::Base
                                                                              "address2"=> row["Billing Address2"],
                                                                              "city"=> row["Billing City"], "zipcode"=>row["Billing ZIP"],
                                                                              "country_id"=> bill_country_id, "state_id"=> bill_state_id,
-                                                                             "phone"=> row["Billing Phone"]},
+                                                                             "phone"=> bill_phone},
                                                   "ship_address_attributes"=>{"firstname"=> row["Shipping First Name"],
                                                                              "lastname"=> row["Shipping Last Name"],
                                                                              "company"=> row["Order Company Name"],
@@ -81,7 +83,7 @@ class Spree::CsvOrder < ActiveRecord::Base
                                                                              "address2"=> row["Shipping Address2"],
                                                                              "city"=> row["Shipping City"], "zipcode"=>row["Shipping ZIP"],
                                                                              "country_id"=> ship_country_id, "state_id"=> ship_state_id,
-                                                                             "phone"=> row["Shipping Phone"]},
+                                                                             "phone"=> ship_phone },
                                                   "customer_type" => row["Customer type"] }
 
           #Assing Variants
@@ -149,11 +151,11 @@ class Spree::CsvOrder < ActiveRecord::Base
             end
           end
 
-          unless row["Tax"].blank? || row["Tax"] == "0"
+          unless row["Tax Exempt"].blank? || row["Tax Exempt"] == "TRUE"
             tax_adjustment = order.adjustments.new
-            tax_adjustment.label = "Custom Tax"
+            tax_adjustment.label = "Tax"
             tax_adjustment.source_type = "Spree::TaxRate"
-            tax_adjustment.amount = row["Tax"].to_f
+            tax_adjustment.amount = 0
             tax_adjustment.save
           end
 
@@ -172,11 +174,17 @@ class Spree::CsvOrder < ActiveRecord::Base
             end
           end
 
+
+
+          unless row["No Charge Code"].blank?
+            order.adjustments.tax.destroy_all
+            order.line_item_adjustments.where(source_type: 'Spree::TaxRate').destroy_all
+            order.update_totals
+          end
           order.save
 
           #set Payment
           payment_method_id = Spree::PaymentMethod.find_by_name(row["Payment Method"]).id
-
           payment_data = {"amount"=> order.total.to_f, "payment_method_id"=> payment_method_id,
                      "purchase_order_number"=> row["Purchase Order Number"],
                      "no_charge_note"=> row["No Charge Note"],
@@ -232,6 +240,10 @@ class Spree::CsvOrder < ActiveRecord::Base
       if Spree::Order.where(:number => row['Order Number']).first && !row['Order Number'].blank?
         message["row #{$.}"] << "Order Number: #{row['Order Number']} is already taken."
       end
+
+      if Spree::Shipment.where(:number => row['Shipment Number']).first && !row['Shipment Number'].blank?
+        message["row #{$.}"] << "Shipment Number: #{row['Shipment Number']} is already taken."
+      end
       
       if Spree::Variant.where(:sku => row["SKU"]).blank? && !row['SKU'].blank?
         message["row #{$.}"] << "We couldn't find any Variant with this SKU: #{row['SKU']}."
@@ -265,6 +277,9 @@ class Spree::CsvOrder < ActiveRecord::Base
           unless row["#{head} Phone"].blank?
              message["row #{$.}"] << "US #{head} Phone only acepts 10 digits: #{row['#{head} Phone']}" if row["#{head} Phone"].scan(/\d/).count > 10
              message["row #{$.}"] << "#{head} Phone must have a valid US format: #{row['#{head} Phone']}" unless row["#{head} Phone"] =~ /^[-+()\/\s\d]+$/
+             unless row["#{head} Phone Extension"].blank?
+               message["row #{$.}"] << "#{head} Phone Extension only accepts 9 digits: #{row['#{head} Phone Extension']}" if row["#{head} Phone Extension"].scan(/\d/).count > 9
+            end
           end
         else
           unless row["#{head} Phone"].blank?
