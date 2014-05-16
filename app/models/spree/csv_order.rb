@@ -223,6 +223,7 @@ class Spree::CsvOrder < ActiveRecord::Base
     open_file = File.open(file.queued_for_write[:original].path)
     errors_msg = []
     orders_number_list = []
+    orders_shipments = {}
     ::CSV.foreach(open_file, {:headers => true}) do |row|
       message = {}
       message["row #{$.}"] = []
@@ -235,6 +236,14 @@ class Spree::CsvOrder < ActiveRecord::Base
       'Customer type', 'Stock Location'].each do |header|
         message["row #{$.}"] << "#{header} is blank" if row[header].blank?
         orders_number_list << row["Order Number"]
+      end
+
+      unless orders_shipments.has_key?(row['Order Number'])
+        orders_shipments["#{row['Order Number']}"] = row['Shipment Number']
+      end
+
+      if orders_shipments["#{row['Order Number']}"] != row['Shipment Number']
+        message["row #{$.}"] << "We only support one shipment per order"
       end
 
       if Spree::Order.where(:number => row['Order Number']).first && !row['Order Number'].blank?
