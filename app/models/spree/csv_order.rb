@@ -86,19 +86,13 @@ class Spree::CsvOrder < ActiveRecord::Base
                                                                              "phone"=> ship_phone },
                                                   "customer_type" => row["Customer type"] }
 
+          #Create Shippment
+          stock_location_id = Spree::StockLocation.find_by_name(row["Stock Location"]).id
+          shipment = order.shipments.create(:number => row['Shipment Number'], :stock_location_id => stock_location_id)
+
           #Assing Variants
           ::CSV.foreach(open_file2,{:headers => true}) do |row_clon|
             if row_clon["Order Number"] == row["Order Number"]
-              #Create Shippment
-              stock_location_id = Spree::StockLocation.find_by_name(row["Stock Location"]).id
-
-              shipments = order.shipments.find_all_by_number(row_clon["Shipment Number"])
-              if shipments.blank?
-                shipment = order.shipments.create(:number => row_clon['Shipment Number'], :stock_location_id => stock_location_id)
-              else
-                shipment = shipments.first
-              end
-
               variant = Spree::Variant.find_by_sku(row_clon["SKU"])
               quantity = row_clon["Number of Items"].to_i
               order.contents.add(variant, quantity, nil, shipment)
@@ -118,7 +112,6 @@ class Spree::CsvOrder < ActiveRecord::Base
               end
 
               shipment.refresh_rates
-              shipment.custom_name = row_clon['Shipping Method']
               shipment.save!
             end
           end
@@ -131,25 +124,13 @@ class Spree::CsvOrder < ActiveRecord::Base
           order.save!
           order.refresh_shipment_rates
 
-          current_shipments = {}
-          current_custom_names = {}
-          order.shipments.each {|s| current_shipments["#{s.number}"] = s.inventory_units.map(&:variant_id).uniq }
-          order.shipments.each {|s| current_custom_names["#{s.number}"] = s.custom_name }
 
           until order.payment?
             order.next
           end
 
-          new_shipments = order.shipments
-          current_shipments.each_pair do |key, value|
-            new_shipments.each do |new_shipment|
-              if value == new_shipment.inventory_units.map(&:variant_id).uniq
-                new_shipment.custom_name = current_custom_names[key]
-                new_shipment.number = key
-                new_shipment.save
-              end
-            end
-          end
+          shipment = order.shipments.first
+          shipment.number = row['Shipment Number']
 
           unless row["Tax Exempt"].blank? || row["Tax Exempt"] == "TRUE"
             tax_adjustment = order.adjustments.new
@@ -159,21 +140,16 @@ class Spree::CsvOrder < ActiveRecord::Base
             tax_adjustment.save
           end
 
-          #Assing correct shippiment cost
-          ::CSV.foreach(open_file2,{:headers => true}) do |row_clon|
-            if row_clon["Order Number"] == row["Order Number"]
-              unless row_clon["Shipping Cost"].blank? || row_clon["Shipping Cost"] == "0"
-                shipment = order.shipments.find_by_number(row_clon['Shipment Number'])
-                if shipment
-                    shipment.refresh_rates
-                    shipment.save
-                    shipment.cost  = row_clon["Shipping Cost"].to_f
-                    shipment.save
-                end
-              end
-            end
-          end
+          shipping_method = Spree::ShippingMethod.where(name: row['Shipping Method']).first
 
+          #Assing correct shippiment cost
+          shipment.refresh_rates
+          shipment.add_shipping_method shipping_method, true
+          shipment.save
+
+          shipment.selected_shipping_rate_id= shipment.shipping_rates.last.id
+          shipment.cost  = row["Shipping Cost"].to_f
+          shipment.save
 
 
           unless row["No Charge Code"].blank?
@@ -224,6 +200,7 @@ class Spree::CsvOrder < ActiveRecord::Base
     errors_msg = []
     orders_number_list = []
     orders_shipments = {}
+    shipping_methods = Spree::ShippingMethod.all.map(&:name).uniq
     ::CSV.foreach(open_file, {:headers => true}) do |row|
       message = {}
       message["row #{$.}"] = []
@@ -248,6 +225,10 @@ class Spree::CsvOrder < ActiveRecord::Base
 
       if Spree::Order.where(:number => row['Order Number']).first && !row['Order Number'].blank?
         message["row #{$.}"] << "Order Number: #{row['Order Number']} is already taken."
+      end
+
+      if !shipping_methods.include?(row['Shipping Method']) && !row['Shipment Method'].blank?
+        message["row #{$.}"] << "Shipping Method: #{row['Shipping Method']} not valid."
       end
 
       if Spree::Shipment.where(:number => row['Shipment Number']).first && !row['Shipment Number'].blank?
