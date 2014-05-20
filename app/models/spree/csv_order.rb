@@ -111,10 +111,10 @@ class Spree::CsvOrder < ActiveRecord::Base
                 ln.save
               end
 
-              shipment.refresh_rates
-              shipment.save!
             end
           end
+          #shipment.refresh_rates
+          shipment.save!
 
 
           #Set customer details
@@ -122,7 +122,7 @@ class Spree::CsvOrder < ActiveRecord::Base
           order.associate_user!(user.first) unless user.empty?
 
           order.save!
-          order.refresh_shipment_rates
+          #order.refresh_shipment_rates
 
 
           until order.payment?
@@ -143,7 +143,9 @@ class Spree::CsvOrder < ActiveRecord::Base
           shipping_method = Spree::ShippingMethod.where(name: row['Shipping Method']).first
 
           #Assing correct shippiment cost
-          shipment.refresh_rates
+          #shipment.refresh_rates
+          shipment.shipping_methods = []
+          shipment.shipping_rates = []
           shipment.add_shipping_method shipping_method, true
           shipment.save
 
