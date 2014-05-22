@@ -61,7 +61,7 @@ class Spree::CsvOrder < ActiveRecord::Base
     logger.info ">>>>>>>>>>>>>>>>> 1"
     open_file = open_file2 = File.open file.path
     errors = {}
-    self.transaction do
+    #self.transaction do
       begin
         ::CSV.foreach(open_file,{:headers => true}) do |row|
           Rails.logger.info ">>>>>>>>>> Procesing => #{row['Order Number']}"
@@ -219,9 +219,9 @@ class Spree::CsvOrder < ActiveRecord::Base
         errors[:error] = message
         rollback_created_orders
         ::CsvOrdersMailer.notify_admin_email(self, errors).deliver
-        raise ActiveRecord::Rollback
+        #raise ActiveRecord::Rollback
       end
-    end
+    #end
     Rails.logger.info ">>>>>>>>>> 1111"
     Rails.logger.warn ">>>>>>>>>> 1111"
     if errors.empty?
