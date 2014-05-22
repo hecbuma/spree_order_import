@@ -217,8 +217,7 @@ class Spree::CsvOrder < ActiveRecord::Base
         message << e.message
         message << e.backtrace.join("\n")
         errors[:error] = message
-        rollback_created_orders
-        ::CsvOrdersMailer.notify_admin_email(self, errors).deliver
+        self.rollback_created_orders errors
         #raise ActiveRecord::Rollback
       end
     #end
@@ -235,13 +234,14 @@ class Spree::CsvOrder < ActiveRecord::Base
     end
   end
 
-  def rollback_created_orders
+  def rollback_created_orders(errors)
     Rails.logger.info ">>>>>>>>>> Rollback!"
     self.completed.each do |number|
       order = Spree::Order.find_by_number number
       order.cancel!
       order.delete
     end
+    ::CsvOrdersMailer.notify_admin_email(self, errors).deliver
   end
 
 
