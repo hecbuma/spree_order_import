@@ -4,6 +4,10 @@ class Spree::CsvOrder < ActiveRecord::Base
 
   has_attached_file :file
 
+  serialize :failed, Array
+  serialize :completed, Array
+  serialize :orders, Array
+
   validate :presence_fields, :on => :create
 
   if Spree.user_class
@@ -29,13 +33,39 @@ class Spree::CsvOrder < ActiveRecord::Base
   def start_process
     self.process!
     open_file = open_file2 = File.open file.path
-    orders = []
+    order_list = []
+    errors = {}
+    begin
+      ::CSV.foreach(open_file,{:headers => true}) do |row|
+        next if Spree::Order.where(:number => row["Order Number"]).first
+        unless order_list.include? row['Order Number']
+          job = OrderWorker.perform_async(self.id, row['Order Number'])
+          #self.process_order row['Order Number']
+          #Rails.logger.info ">>>>>>>>>> #{job} => #{row['Order Number']}"
+        end
+      end
+    rescue => e
+      self.error!
+      message = ""
+      message << e.message
+      message << e.backtrace.join("\n")
+      errors[:error] = message
+      ::CsvOrdersMailer.notify_admin_email(self, errors).deliver
+    end
+  end
+
+  def process_order(order_number)
+    logger.info ">>>>>>>>>>>>>>>>>"
+    return nil if self.failed.size > 0
+    return nil if Spree::Order.where(:number => order_number).first
+    logger.info ">>>>>>>>>>>>>>>>> 1"
+    open_file = open_file2 = File.open file.path
     errors = {}
     self.transaction do
       begin
         ::CSV.foreach(open_file,{:headers => true}) do |row|
-
-          next if Spree::Order.where(:number => row["Order Number"]).first
+          Rails.logger.info ">>>>>>>>>> Procesing => #{row['Order Number']}"
+          next if  order_number != row['Order Number']
           #order info
           order = Spree::Order.new number: row["Order Number"]
           if row["B2B/B2C"].blank?
@@ -69,22 +99,22 @@ class Spree::CsvOrder < ActiveRecord::Base
           ship_phone = row['Shipping Phone Extension'].blank? ? "#{row['Shipping Phone']}x#{row['Shipping Phone Extension']}" : row['Shipping Phone']
           bill_phone = row['Billing Phone Extension'].blank? ? "#{row['Billing Phone']}x#{row['Billing Phone Extension']}" : row['Billing Phone']
           user_details = {"email"=> row["Email"], "bill_address_attributes"=>{"firstname"=> row["Billing First Name"],
-                                                                             "lastname"=> row["Billing Last Name"],
-                                                                             "company"=> row["Order Company Name"],
-                                                                             "address1"=> row["Billing Address1"],
-                                                                             "address2"=> row["Billing Address2"],
-                                                                             "city"=> row["Billing City"], "zipcode"=>row["Billing ZIP"],
-                                                                             "country_id"=> bill_country_id, "state_id"=> bill_state_id,
-                                                                             "phone"=> bill_phone},
-                                                  "ship_address_attributes"=>{"firstname"=> row["Shipping First Name"],
-                                                                             "lastname"=> row["Shipping Last Name"],
-                                                                             "company"=> row["Order Company Name"],
-                                                                             "address1"=> row["Shipping Address1"],
-                                                                             "address2"=> row["Shipping Address2"],
-                                                                             "city"=> row["Shipping City"], "zipcode"=>row["Shipping ZIP"],
-                                                                             "country_id"=> ship_country_id, "state_id"=> ship_state_id,
-                                                                             "phone"=> ship_phone },
-                                                  "customer_type" => row["Customer type"] }
+                                                                              "lastname"=> row["Billing Last Name"],
+                                                                              "company"=> row["Order Company Name"],
+                                                                              "address1"=> row["Billing Address1"],
+                                                                              "address2"=> row["Billing Address2"],
+                                                                              "city"=> row["Billing City"], "zipcode"=>row["Billing ZIP"],
+                                                                              "country_id"=> bill_country_id, "state_id"=> bill_state_id,
+                                                                              "phone"=> bill_phone},
+                          "ship_address_attributes"=>{"firstname"=> row["Shipping First Name"],
+                                                      "lastname"=> row["Shipping Last Name"],
+                                                      "company"=> row["Order Company Name"],
+                                                      "address1"=> row["Shipping Address1"],
+                                                      "address2"=> row["Shipping Address2"],
+                                                      "city"=> row["Shipping City"], "zipcode"=>row["Shipping ZIP"],
+                                                      "country_id"=> ship_country_id, "state_id"=> ship_state_id,
+                                                      "phone"=> ship_phone },
+                          "customer_type" => row["Customer type"] }
 
           #Create Shippment
           stock_location_id = Spree::StockLocation.find_by_name(row["Stock Location"]).id
@@ -164,9 +194,9 @@ class Spree::CsvOrder < ActiveRecord::Base
           #set Payment
           payment_method_id = Spree::PaymentMethod.find_by_name(row["Payment Method"]).id
           payment_data = {"amount"=> order.total.to_f, "payment_method_id"=> payment_method_id,
-                     "purchase_order_number"=> row["Purchase Order Number"],
-                     "no_charge_note"=> row["No Charge Note"],
-                     "no_charge_code"=> row["No Charge Code"]}
+                          "purchase_order_number"=> row["Purchase Order Number"],
+                          "no_charge_note"=> row["No Charge Note"],
+                          "no_charge_code"=> row["No Charge Code"]}
           payment = order.payments.build(payment_data)
 
           payment.save
@@ -178,21 +208,40 @@ class Spree::CsvOrder < ActiveRecord::Base
 
           order.touch
           order.update!
-
-          orders << order
         end
       rescue => e
-        orders = []
+        Rails.logger.info ">>>>>>>>>> Errors!"
         self.error!
+        self.failed << order_number
         message = ""
         message << e.message
         message << e.backtrace.join("\n")
         errors[:error] = message
+        rollback_created_orders
+        ::CsvOrdersMailer.notify_admin_email(self, errors).deliver
         raise ActiveRecord::Rollback
       end
     end
-    self.finish! if errors.empty?
-    ::CsvOrdersMailer.notify_admin_email(orders, self, errors).deliver
+    Rails.logger.info ">>>>>>>>>> 1111"
+    Rails.logger.warn ">>>>>>>>>> 1111"
+    if errors.empty?
+      self.completed << order_number
+    end
+    save!
+
+    if self.completed.size == self.orders.size
+      Rails.logger.info ">>>>>>>>>> Completed"
+      ::CsvOrdersMailer.notify_admin_email(self, errors).deliver
+    end
+  end
+
+  def rollback_created_orders
+    Rails.logger.info ">>>>>>>>>> Rollback!"
+    self.completed.each do |number|
+      order = Spree::Order.find_by_number number
+      order.cancel!
+      order.delete
+    end
   end
 
 
@@ -321,6 +370,7 @@ class Spree::CsvOrder < ActiveRecord::Base
       end
 
       self.orders_number = orders_number_list.uniq.count
+      self.orders =  orders_number_list.uniq
       unless message["row #{$.}"].empty?
         error_list = message["row #{$.}"].join("<br/>")
         errors_msg << "<b>Order:#{row['Order Number']} row #{$.}:</b><br/> #{error_list}"
