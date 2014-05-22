@@ -1,6 +1,7 @@
 class OrderWorker
   include Sidekiq::Worker
-  sidekiq_options :retry => false
+  sidekiq_options :queue => :bulkorders, :retry => false, :backtrace => true
+
 
   def perform(csv_order_id, order)
     csv_order = Spree::CsvOrder.find(csv_order_id)
