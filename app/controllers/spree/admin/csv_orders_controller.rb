@@ -12,8 +12,8 @@ module Spree
         @csv_order = Spree::CsvOrder.new csv_order_params
         if @csv_order.save
           message = { notice: "Your orders will be procesed soon, and you will notified by Email."}
-          # CsvOrdersWorker.perform_async(@csv_order.id)
-          @csv_order.start_process
+          CsvOrdersWorker.perform_async(@csv_order.id)
+          # @csv_order.start_process
           redirect_to :back, flash: { notice: message[:notice], alert: message[:error]}
         else
           render :index
