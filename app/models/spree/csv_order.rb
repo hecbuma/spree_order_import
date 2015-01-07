@@ -36,6 +36,7 @@ class Spree::CsvOrder < ActiveRecord::Base
         ::CSV.foreach(open_file,{:headers => true}) do |row|
 
           next if Spree::Order.where(:number => row["Order Number"]).first
+          puts ">>>>>>>>>>>>>> #{row["Order Number"]}"
           #order info
           order = Spree::Order.new number: row["Order Number"]
           if row["B2B/B2C"].blank?
@@ -86,9 +87,13 @@ class Spree::CsvOrder < ActiveRecord::Base
                                                                              "phone"=> ship_phone },
                                                   "customer_type" => row["Customer type"] }
 
+          #Set customer details
+          order.update_attributes(user_details)
+          order.associate_user!(user.first) unless user.empty?
+
           #Create Shippment
           stock_location_id = Spree::StockLocation.find_by_name(row["Stock Location"]).id
-          shipment = order.shipments.create(:number => row['Shipment Number'], :stock_location_id => stock_location_id)
+          shipment = order.shipments.create(:stock_location_id => stock_location_id)
 
           #Assing Variants
           ::CSV.foreach(open_file2,{:headers => true}) do |row_clon|
@@ -114,44 +119,47 @@ class Spree::CsvOrder < ActiveRecord::Base
             end
           end
           #shipment.refresh_rates
-          shipment.save!
+          # shipment.save!
 
 
-          #Set customer details
-          order.update_attributes(user_details)
-          order.associate_user!(user.first) unless user.empty?
-
-          order.save!
+          # order.save!
           #order.refresh_shipment_rates
 
-
-          until order.payment?
-            order.next
-          end
+          #
+          # until order.payment?
+          #   order.next
+          # end
 
           shipment = order.shipments.first
-          shipment.number = row['Shipment Number']
+          # shipment.number = row['Shipment Number']
 
           unless row["Tax Exempt"].blank? || row["Tax Exempt"] == "TRUE"
+            order.adjustments.tax.destroy_all
             tax_adjustment = order.adjustments.new
             tax_adjustment.label = "Tax"
             tax_adjustment.source_type = "Spree::TaxRate"
-            tax_adjustment.amount = 0
-            tax_adjustment.save
+            tax_adjustment.amount = row["Tax"]
+            tax_adjustment.save!
           end
 
-          shipping_method = Spree::ShippingMethod.where(name: row['Shipping Method']).first
+          shipping_method = Spree::ShippingMethod.where(unique_identifier: row['Shipping Method']).first
 
           #Assing correct shippiment cost
           #shipment.refresh_rates
           shipment.shipping_methods = []
           shipment.shipping_rates = []
           shipment.add_shipping_method shipping_method, true
-          shipment.save
+          shipment.save!
 
           shipment.selected_shipping_rate_id= shipment.shipping_rates.last.id
           shipment.cost  = row["Shipping Cost"].to_f
-          shipment.save
+
+          shipment.shipped_at = DateTime.now
+          # shipment.state      = 'shipped'
+          # shipment.inventory_units.each do |unit|
+          #   unit.state = 'shipped'
+          # end
+          shipment.save!
 
 
           unless row["No Charge Code"].blank?
@@ -159,7 +167,7 @@ class Spree::CsvOrder < ActiveRecord::Base
             order.line_item_adjustments.where(source_type: 'Spree::TaxRate').destroy_all
             order.update_totals
           end
-          order.save
+          order.save!
 
           #set Payment
           payment_method_id = Spree::PaymentMethod.find_by_name(row["Payment Method"]).id
@@ -168,16 +176,23 @@ class Spree::CsvOrder < ActiveRecord::Base
                      "no_charge_note"=> row["No Charge Note"],
                      "no_charge_code"=> row["No Charge Code"]}
           payment = order.payments.build(payment_data)
+          payment.state = "completed"
 
-          payment.save
+          payment.save!
 
           order.customer_type = row["Customer type"]
-          until order.completed?
-            order.next!
-          end
-
-          order.touch
+          # until order.completed?
+          #   order.next!
+          # end
+          order.completed_at = DateTime.now
+          order.state = 'complete'
+          order.save!
+          order.reload
           order.update!
+          order.save!
+
+          # order.touch
+          # order.update!
 
           orders << order
         end
@@ -202,11 +217,11 @@ class Spree::CsvOrder < ActiveRecord::Base
     errors_msg = []
     orders_number_list = []
     orders_shipments = {}
-    shipping_methods = Spree::ShippingMethod.all.map(&:name).uniq
+    shipping_methods = Spree::ShippingMethod.all.map(&:unique_identifier).uniq
     ::CSV.foreach(open_file, {:headers => true}) do |row|
       message = {}
       message["row #{$.}"] = []
-      ['Order Number', 'Shipment Number', 'Email', 'Billing First Name', 'Billing Last Name',
+      ['Order Number', 'Email', 'Billing First Name', 'Billing Last Name',
       'Billing Address1', 'Billing City','Billing ZIP',
       'Billing Country','Billing Phone', 'Shipping Method', 'Shipping First Name',
       'Shipping Last Name', 'Shipping Address1', 'Shipping City',
@@ -217,26 +232,26 @@ class Spree::CsvOrder < ActiveRecord::Base
         orders_number_list << row["Order Number"]
       end
 
-      unless orders_shipments.has_key?(row['Order Number'])
-        orders_shipments["#{row['Order Number']}"] = row['Shipment Number']
-      end
-
-      if orders_shipments["#{row['Order Number']}"] != row['Shipment Number']
-        message["row #{$.}"] << "We only support one shipment per order"
-      end
+      # unless orders_shipments.has_key?(row['Order Number'])
+      #   orders_shipments["#{row['Order Number']}"] = row['Shipment Number']
+      # end
+      #
+      # if orders_shipments["#{row['Order Number']}"] != row['Shipment Number']
+      #   message["row #{$.}"] << "We only support one shipment per order"
+      # end
 
       if Spree::Order.where(:number => row['Order Number']).first && !row['Order Number'].blank?
         message["row #{$.}"] << "Order Number: #{row['Order Number']} is already taken."
       end
 
-      if !shipping_methods.include?(row['Shipping Method']) && !row['Shipment Method'].blank?
+      if !shipping_methods.include?(row['Shipping Method']) && !row['Shipping Method'].blank?
         message["row #{$.}"] << "Shipping Method: #{row['Shipping Method']} not valid."
       end
 
-      if Spree::Shipment.where(:number => row['Shipment Number']).first && !row['Shipment Number'].blank?
-        message["row #{$.}"] << "Shipment Number: #{row['Shipment Number']} is already taken."
-      end
-      
+      # if Spree::Shipment.where(:number => row['Shipment Number']).first && !row['Shipment Number'].blank?
+      #   message["row #{$.}"] << "Shipment Number: #{row['Shipment Number']} is already taken."
+      # end
+
       if Spree::Variant.where(:sku => row["SKU"]).blank? && !row['SKU'].blank?
         message["row #{$.}"] << "We couldn't find any Variant with this SKU: #{row['SKU']}."
       end
@@ -268,15 +283,12 @@ class Spree::CsvOrder < ActiveRecord::Base
           message["row #{$.}"] << "#{head} ZIP: #{row['#{head} ZIP']} has an incorrect format" unless row["#{head} ZIP"] =~ /^\d{5}(-\d{4})?$/
           unless row["#{head} Phone"].blank?
              message["row #{$.}"] << "US #{head} Phone only acepts 10 digits: #{row['#{head} Phone']}" if row["#{head} Phone"].scan(/\d/).count > 10
-             message["row #{$.}"] << "#{head} Phone must have a valid US format: #{row['#{head} Phone']}" unless row["#{head} Phone"] =~ /^[-+()\/\s\d]+$/
-             unless row["#{head} Phone Extension"].blank?
-               message["row #{$.}"] << "#{head} Phone Extension only accepts 9 digits: #{row['#{head} Phone Extension']}" if row["#{head} Phone Extension"].scan(/\d/).count > 9
-            end
+             #message["row #{$.}"] << "#{head} Phone must have a valid US format: #{row['#{head} Phone']}" unless row["#{head} Phone"] =~ /^[-+()\/\s\d]+$/
           end
-        else
-          unless row["#{head} Phone"].blank?
-             message["row #{$.}"] << "#{head} Phone must have a valid US format: #{row['#{head} Phone']}" unless row["#{head} Phone"] =~ /^[-+()\/\s\d]+$/
-          end
+        # else
+        #   unless row["#{head} Phone"].blank?
+        #      message["row #{$.}"] << "#{head} Phone must have a valid US format: #{row['#{head} Phone']}" unless row["#{head} Phone"] =~ /^[-+()\/\s\d]+$/
+        #   end
         end
         unless row["#{head} City"].blank?
           val = row["#{head} City"]
@@ -305,7 +317,7 @@ class Spree::CsvOrder < ActiveRecord::Base
         message["row #{$.}"] << "we couldn't find this user group: #{row['Customer type']}" if !Spree::Order.customer_types.include?(row["Customer type"]) && row["Customer type"] != "DRTC:LBT"
       end
 
-      ['Order Number', 'Shipment Number'].each do |field|
+      ['Order Number'].each do |field|
         unless row[field].blank?
           message["row #{$.}"] << "#{field} must be an 4 to 15 alphanumeric value: #{row[field]}" unless row[field] =~ /^[\w+]{4,15}$/
         end

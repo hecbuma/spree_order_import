@@ -1,0 +1,9 @@
+<!-- insert_after '[data-hook=admin_shipping_method_form_tracking_url_field]' -->
+
+<div class="alpha six columns">
+  <%= f.field_container :unique_identifier do %>
+    <%= f.label :unique_identifier, Spree.t(:unique_identifier) %><br />
+    <%= f.text_field :unique_identifier, :class => 'fullwidth', :label => false  %>
+    <%= error_message_on :shipping_method, :unique_identifier %>
+  <% end %>
+</div>

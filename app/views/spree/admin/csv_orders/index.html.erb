@@ -19,12 +19,23 @@
         </div>
         <div class="clearfix"></div>
         <div class="actions filter-actions">
-        <div> 
+        <div>
           <%= submit_tag 'Upload Csv', {:class => 'button icon-search', :disabled => 'disabled'} %>
         </div>
       <% end %>
     </div>
 </fieldset>
+
+<div class="six columns">
+  <p>Use the following codes as <b>Shipping Method</b> in the CSV.</p>
+  <dl class="additional-info">
+    <% Spree::ShippingMethod.all.each do |ship| %>
+      <% next if ship.unique_identifier.blank? %>
+      <dd><%= "#{ship.admin_name}:" %></dd>
+      <dt><%= ship.unique_identifier %></dt>
+    <% end %>
+  </dl>
+</div>
 
  <% if @csv_list.try(:any?) %>
    <table class="index responsive" id="listing_orders" data-hook>
@@ -57,5 +68,3 @@
      </tbody>
    </table>
  <% end %>
-
-
